@@ -20,7 +20,7 @@ The visual editor uses MathLive. HTML and notebook image/PDF export use KaTeX fo
 - `.quanta`: fully editable notebook with metadata, visual document JSON, embedded images, and optional TeX source.
 - `.pdf` from the visual notebook: paginated raster representation. Text is not fully selectable.
 - `.pdf` from TeX compilation: real TeX PDF, with vector text and formula typography.
-- `.png`: high-resolution full notebook image; long-note size limits prevent excessive allocation.
+- `.png`: high-resolution notebook image, or stacked compiled document pages in LaTeX mode; image-size limits prevent excessive allocation.
 - `.svg`: scalable outer image with HTML `foreignObject` content. Best opened in a browser.
 - `.md`: Markdown with inline and display LaTeX mathematics.
 - `.tex`: standalone document source. Embedded notebook images are described as figure placeholders; use HTML, PNG, or notebook PDF for their pixels.
@@ -28,3 +28,7 @@ The visual editor uses MathLive. HTML and notebook image/PDF export use KaTeX fo
 - `.txt`: plain readable text and equation source.
 
 Advanced documents should be checked in the compiled-PDF workspace before sharing. First use of a TeX package outside the bundled scientific cache needs network access; subsequent use can use the cache.
+
+## Document-source scope
+
+Desktop uses the XeTeX-based Tectonic engine; the browser uses PDFTeX with a pinned format and TeX Live 2020 package downloads. Browser Unicode/font capabilities differ from XeTeX. The source workspace currently edits one .tex document. An attachment manager for arbitrary .bib files, figures, and multi-file projects is not implemented; notebook image exports preserve embedded image pixels, while generated TeX describes those images as placeholders.

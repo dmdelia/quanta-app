@@ -57,4 +57,4 @@ The GitHub Actions workflow builds on Windows and an Apple Silicon macOS runner,
 
 ## Project status
 
-This source is the initial implementation. A release is usable only after the native pipeline succeeds and platform launch tests are completed. Check `docs/VALIDATION.md` for executed checks, pending checks, and current setup blockers. Do not infer a completed installer from the presence of a build workflow.
+[Preview 8](https://github.com/dmdelia/quanta-app/releases/tag/v0.1.0-preview.8) provides actual Apple Silicon and Windows installers. Its matching CI run passed browser writing/export tests, native packaging and launch smoke checks, and production web offline/plugin/TeX tests. Google authorization still needs your OAuth registration, and Pages needs its publishing source enabled once. See [validation](docs/VALIDATION.md) for evidence and remaining acceptance checks.

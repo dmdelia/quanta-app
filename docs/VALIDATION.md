@@ -1,44 +1,30 @@
 # Validation record
 
-Initial implementation, 13 October 2026. This record distinguishes completed checks from build instructions and pending runtime tests.
+Verified preview: [QUANTA 0.1.0 Preview 8](https://github.com/dmdelia/quanta-app/releases/tag/v0.1.0-preview.8).
+Source commit: `39bd2b83d1d53fca2025083ebeeb12a9df0efcb6`.
+[CI run 8](https://github.com/dmdelia/quanta-app/actions/runs/38481735803), 13 October 2026 (UTC).
 
-## Executed locally
+## Passed in the matching CI run
 
-- TypeScript strict compilation: passed.
-- Production frontend build: passed.
-- Standalone web build with relative assets, service worker, and validated browser TeX WebAssembly: passed.
-- Frontend tests (15 passed): save serialization, failure retention, concurrent flushes, equation interchange, Markdown sanitization, file validation, StarMath conversion, IndexedDB persistence, and preservation of concurrent notebook/export writes.
-- Rust core tests (11 passed): atomic local storage, stale-write refusal, path validation, recovery of healthy notes beside a damaged file, trash/restore, durable export queues, password hashing, PKCE, callback state checks, and immutable conflict branches.
-- Rust core Clippy with warnings denied: passed.
-- Rust formatting check: passed.
-- Pinned desktop Tectonic executable download: succeeded.
+- Strict TypeScript compilation and production frontend build.
+- 15 frontend unit tests: save serialization and failure retention, document interchange, Markdown sanitization, StarMath conversion, IndexedDB persistence, and concurrent notebook/export preservation.
+- 11 Rust core tests, Clippy with warnings denied, and Rust formatting.
+- Three real-browser notebook tests: fast creation and typing followed by save/reload/password unlock; equations, themes, focus mode, and Markdown download; custom macro expansion and actual PDF/PNG exports. PDF pages are rasterized for checks of opaque document content and prevention of a repeated title. PNG pixels are checked for visible content.
+- Apple Silicon: target compilation, bundled Tectonic, offline scientific TeX compilation, .app/.dmg packaging, ad-hoc signature verification, and a ten-second packaged-app launch smoke check.
+- Windows x64: target compilation, bundled Tectonic, offline scientific TeX compilation, setup .exe packaging, silent installation, installed-engine presence, and a ten-second installed-app launch smoke check.
+- Production web app under /quanta-app/: offline reload and password unlock, persisted worker plugin execution, actual browser TeX PDF compilation, and PNG export of the compiled document.
+- Release publication with both platforms, source archive, example plugins, and SHA-256 checksums.
 
-## Executed on GitHub Actions
+## Remaining acceptance and setup
 
-- Repository: `dmdelia/quanta-app`; source and `AGENTS.md` published to `main`.
-- Initial checks job, run 1: passed, including the two real-browser editor tests for save/reload/password, equation insertion, themes, focus mode, and Markdown download.
-- Run 2 exposed a MathLive mount-order regression introduced by the visual macro wiring. The regression was fixed; run 3 passed all three browser specifications, including custom macro expansion and actual PDF/PNG downloads.
-- Run 3 output inspection found a blank PNG despite a valid PNG signature. Run 4 verified the corrected PNG with actual image pixels and visual inspection, including matrices and superscripts. PDF pagination subsequently exposed a separate blank-page issue; PDF now renders from the original measured article, and every exported PDF page is checked for visible content. This correction awaits the next CI run.
-- Run 4 built both native distributions successfully. Apple Silicon: `.dmg`, archived `.app`, ad-hoc code-signature verification, offline scientific TeX compile, and a ten-second bundled-app launch. Windows x64: setup `.exe`, offline scientific TeX compile, silent installation, bundled-engine presence, and a ten-second installed-app launch. These are smoke checks, not complete interactive acceptance tests.
-- Production web tests cover the Pages subpath, offline reload, worker plugin execution, and real browser TeX compilation. The latest source also adds TeX-derived PDF/PNG exports to all four destinations and a lazily loaded PDF renderer. Its matching CI run remains required before recommending those new downloads.
+- GitHub Pages deployment is blocked only by the repository setting. Configure Settings → Pages → Source → GitHub Actions, then rerun the failed Pages job. The deployment attempt returned “Get Pages site failed” / 404 because no Pages site is enabled. The connector cannot edit this administration setting, and the standard workflow token cannot initially enable it.
+- Google authorization, OS keychain persistence with real credentials, two-device Drive sync, and Drive export need the user's Desktop and Web OAuth registrations in one Google Cloud project. Configure them in the app UI; no environment file is required. These live operations have not been claimed as tested.
+- Interactive acceptance on the user's own Mac and Windows computer remains necessary. CI launches are smoke checks, and the shared editor was exercised in Chromium.
+- macOS builds are ad-hoc signed without Apple notarization. Windows builds have no trusted publisher signature. Trusted signing credentials were not provided.
+- No low-end hardware benchmark has been claimed.
 
-## Blocked or pending
+## Deliberate limits
 
-- Native Windows and Apple Silicon packaging and launch smoke checks passed in run 4. The newest PDF export correction and source-mode exports still need their matching build. The local build container lacks Linux WebKitGTK development dependencies.
-- Full desktop TeX compile: the package-bundle endpoint is unavailable from this environment. Engine preparation correctly fails rather than claiming an offline cache was completed.
-- Local real-browser UI/visual checks: the required local browser download did not complete in this managed environment. The original browser E2E tests passed in CI; generated screenshots and finished export files are retained by subsequent runs.
-- Actual Google sign-in, token persistence, two-device sync, and Drive export: pending valid OAuth registrations and a runtime authorization. Algorithm tests are not a substitute for those live checks.
-- Browser TeX runtime compilation: pending a real browser and access to the upstream package service.
-- Interactive editor and installation acceptance on the user's Mac and Windows computer: pending. CI launch smoke checks succeeded. macOS is ad-hoc signed and Windows has no trusted publisher signature; notarization and trusted signing are not claimed.
-- GitHub repository: the user supplied the public `dmdelia/quanta-app` repository. It is now populated; no repository was created in the earlier account.
-- GitHub Pages publication: deliberately dependent on successful native build jobs. No Pages deployment has been claimed.
+QUANTA is a tested preview, not a declaration that every feature or failure case is bug-free. It does not implement native LibreOffice .odf files or every StarMath formatting directive. The TeX workspace edits one document source; an attachment manager for arbitrary multi-file TeX projects is not implemented. Desktop uses Tectonic/XeTeX; browser uses the pinned PDFTeX WebAssembly engine with a bundled, checksum-verified format and on-demand TeX Live 2020 packages. See [compatibility](compatibility.md) and [Google Drive](google-drive.md).
 
-## Follow-up acceptance checks
-
-1. Run the Actions pipeline and resolve all E2E and platform build errors.
-2. Download the native artifacts, verify checksums, and perform launch and save/reopen checks on Windows and Apple Silicon.
-3. Register the Desktop and Web clients in one Google Cloud project, configure through the app, and verify offline editing followed by successful sync.
-4. Verify actual PDF/PNG/HTML exports, real TeX compilation, and an enabled example plugin.
-5. Set Settings → Pages → Source to GitHub Actions, then verify the deployed URL, subpath assets, offline reload, and browser Google sign-in. The connector can publish repository code but cannot change the Pages administration setting; the standard workflow token cannot initially enable Pages either.
-
-The implementation is not yet declared feature-complete or bug-free. Broad LaTeX support comes from the TeX engines; full LibreOffice native-format and formatting compatibility is not implemented. See compatibility.md.
+The local password is an interface and command gate, not disk encryption. The static web password and workspace belong to the browser profile. Drive authorization in the browser is per session; desktop uses the OS keychain for refresh tokens.

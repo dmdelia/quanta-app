@@ -38,3 +38,7 @@ Signing secrets, if configured later, belong in GitHub Actions secrets. They are
 ## Checksums and contents
 
 Release downloads should include installers, a source archive, `.qplugin` examples, and SHA-256 checksums. Do not package `node_modules`, Rust build targets, OAuth credentials, actual notebooks, password records, or private workspace data in source downloads.
+
+## Browser engine assets
+
+The web preparation step verifies the pinned PDFTeX format with SHA-256 `3134ef8cbfa829780fc0b63b5320fb680e8f895f0c7f48ecb82af159098760ec`. The engine and format load only when compiling. Additional package GET requests use the TeXlyre mirror and are cached after successful retrieval. Document source stays in the local worker. PDF.js assets for image rendering of compiled PDFs are bundled and load on demand. Native builds use Tectonic instead.
