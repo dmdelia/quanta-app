@@ -1,4 +1,4 @@
-import { webRead, webWrite } from './web-store';
+import { webRead, webWrite, webWithLock } from './web-store';
 import { defaultSettings, validateNotebook, type Notebook, type Settings, type SyncStatus } from './types';
 
 interface Remote {id:string;name:string;createdTime:string;appProperties:Record<string,string>;}
@@ -49,27 +49,30 @@ async function preserve(note:Notebook,notes:Notebook[]){
   const id=await conflictId(note);
   if(!notes.some(n=>n.id===id))notes.push({...note,id,title:note.title+' (conflict copy)',tags:[...note.tags,'sync-conflict']});
 }
-async function withNotes<T>(operation:(notes:Notebook[])=>Promise<T>):Promise<T>{const run=async()=>{const notes=await webRead<Notebook[]>('notes',[]);const result=await operation(notes);await webWrite('notes',notes);return result;};return navigator.locks?navigator.locks.request('quanta-notes-write',run):run();}
+async function withNotes<T>(operation:(notes:Notebook[])=>Promise<T>):Promise<T>{return webWithLock('notes-write',async()=>{const notes=await webRead<Notebook[]>('notes',[]);const result=await operation(notes);await webWrite('notes',notes);return result;});}
+async function commitIndex(index:Index,processed?:{id:string;date:string}){return webWithLock('sync-index',async()=>{const current=await webRead<Index>('sync',freshIndex());index.tombstones=current.tombstones;if(processed&&index.tombstones[processed.id]===processed.date)delete index.tombstones[processed.id];await webWrite('sync',index);});}
 export const webDrive={
   async connect():Promise<SyncStatus>{
+    return webWithLock('drive-sync',async()=>{
     const settings={...defaultSettings,...await webRead<Partial<Settings>>('settings',{})};
     if(!settings.googleWebClientId.endsWith('.apps.googleusercontent.com'))throw new Error('Enter a Web OAuth client ID in Google Drive settings first. Add this site origin as an authorized JavaScript origin in Google Cloud.');
     const identity=await google();await new Promise<void>((resolve,reject)=>{
       const client=identity.accounts.oauth2.initTokenClient({client_id:settings.googleWebClientId,scope:'https://www.googleapis.com/auth/drive.file openid email',callback:r=>{if(!r.access_token){reject(new Error('Google sign-in was declined or could not complete.'));return;}accessToken=r.access_token;expiresAt=Date.now()+r.expires_in*1000;resolve();},error_callback:()=>reject(new Error('Google sign-in did not open. Allow the sign-in popup and try again.'))});client.requestAccessToken({prompt:'select_account'});
     });
     const profile=await(await api('https://www.googleapis.com/oauth2/v3/userinfo')).json();let index=await webRead<Index>('sync',freshIndex());if(index.account&&index.account!==profile.email)index=freshIndex();index.account=profile.email;await webWrite('sync',index);status={...status,connected:true,state:'idle',account:index.account,message:'Google Drive is connected to this browser session.'};return this.status();
+    });
   },
-  async disconnect(){if(accessToken){const identity=await google();const old=accessToken;accessToken='';expiresAt=0;identity.accounts.oauth2.revoke(old,()=>{});}status={...status,connected:false,state:'disconnected',message:'Google Drive disconnected.'};},
+  async disconnect(){return webWithLock('drive-sync',async()=>{if(accessToken){const identity=await google();const old=accessToken;accessToken='';expiresAt=0;identity.accounts.oauth2.revoke(old,()=>{});}status={...status,connected:false,state:'disconnected',message:'Google Drive disconnected.'};});},
   async status():Promise<SyncStatus>{const index=await webRead<Index>('sync',freshIndex());const notes=await webRead<Notebook[]>('notes',[]);let dirty=0;for(const n of notes)if(index.entries[n.id]?.baseHash!==await noteHash(n))dirty++;return {...status,connected:!!accessToken&&Date.now()<expiresAt-30000,lastSync:index.lastSync,account:index.account,pending:dirty+(await webRead<ExportJob[]>('export-queue',[])).length+Object.keys(index.tombstones).length};},
-  async queue(name:string,data:string,mime:string,replace:boolean){if(!name||/[\/\\\0]/.test(name))throw new Error('Choose a plain export filename.');const jobs=await webRead<ExportJob[]>('export-queue',[]);jobs.push({id:crypto.randomUUID(),name,data,mime,replace});await webWrite('export-queue',jobs);},
-  async tombstone(id:string){const index=await webRead<Index>('sync',freshIndex());index.tombstones[id]=new Date().toISOString();await webWrite('sync',index);},
-  async restore(id:string){const index=await webRead<Index>('sync',freshIndex());delete index.tombstones[id];await webWrite('sync',index);},
+  async queue(name:string,data:string,mime:string,replace:boolean){if(!name||/[\/\\\0]/.test(name))throw new Error('Choose a plain export filename.');return webWithLock('export-queue',async()=>{const jobs=await webRead<ExportJob[]>('export-queue',[]);jobs.push({id:crypto.randomUUID(),name,data,mime,replace});await webWrite('export-queue',jobs);});},
+  async tombstone(id:string){return webWithLock('sync-index',async()=>{const index=await webRead<Index>('sync',freshIndex());index.tombstones[id]=new Date().toISOString();await webWrite('sync',index);});},
+  async restore(id:string){return webWithLock('sync-index',async()=>{const index=await webRead<Index>('sync',freshIndex());delete index.tombstones[id];await webWrite('sync',index);});},
   async run():Promise<SyncStatus>{
     if(running)return running;
     const execute=async()=>{
       token();status={...status,state:'syncing'};const root=await folder(null,'QUANTA','root');const notesFolder=await folder(root,'Notebooks','notebooks');const exportsFolder=await folder(root,'Exports','exports');
       const remote=await list(`trashed=false and '${notesFolder}' in parents`);let index=await webRead<Index>('sync',freshIndex());
-      for(const [id,date] of Object.entries(index.tombstones)){const hash='deleted:'+date;const exists=remote.find(f=>f.appProperties.quantaId===id&&f.appProperties.quantaHash===hash);const file=exists??await upload(notesFolder,id+'.qtrash','application/json',new Blob([JSON.stringify({id,deletedAt:date})]),{quantaId:id,quantaHash:hash,quantaParent:index.entries[id]?.baseHash??'',quantaDeleted:'true'});index.entries[id]={remoteId:file.id,baseHash:hash};remote.push(file);const current=await webRead<Index>('sync',freshIndex());index.tombstones=current.tombstones;delete index.tombstones[id];await webWrite('sync',index);}
+      for(const [id,date] of Object.entries(index.tombstones)){const hash='deleted:'+date;const exists=remote.find(f=>f.appProperties.quantaId===id&&f.appProperties.quantaHash===hash);const file=exists??await upload(notesFolder,id+'.qtrash','application/json',new Blob([JSON.stringify({id,deletedAt:date})]),{quantaId:id,quantaHash:hash,quantaParent:index.entries[id]?.baseHash??'',quantaDeleted:'true'});index.entries[id]={remoteId:file.id,baseHash:hash};remote.push(file);await commitIndex(index,{id,date});}
       const groups=new Map<string,Remote[]>();for(const f of remote){const id=f.appProperties.quantaId;if(id){groups.set(id,[...groups.get(id)??[],f]);}}
       for(const [id,files] of groups){const leaves=heads(files);const winner=leaves.pop();if(!winner)continue;
         for(const losing of leaves.filter(f=>f.appProperties.quantaDeleted!=='true')){const n=await download(losing);await withNotes(async notes=>preserve(n,notes));}
@@ -83,14 +86,14 @@ export const webDrive={
           if(localHash===remoteHash)index.entries[id]={remoteId:winner.id,baseHash:remoteHash};
           else if(!local||base!==remoteHash){const downloaded=await download(winner);await withNotes(async notes=>{const i=notes.findIndex(n=>n.id===id);if(i>=0){const current=await noteHash(notes[i]);if(current!==remoteHash&&current!==base)await preserve(notes[i],notes);notes[i]=downloaded;}else notes.push(downloaded);});index.entries[id]={remoteId:winner.id,baseHash:remoteHash};}
         }
-        index.tombstones=(await webRead<Index>('sync',freshIndex())).tombstones;await webWrite('sync',index);
+        await commitIndex(index);
       }
       const notes=await webRead<Notebook[]>('notes',[]);
-      for(const note of notes){const hash=await noteHash(note);if(index.entries[note.id]?.baseHash===hash)continue;const existing=remote.find(f=>f.appProperties.quantaId===note.id&&f.appProperties.quantaHash===hash);const file=existing??await upload(notesFolder,note.title.replace(/[<>:"\/\\|?*]/g,'_')+' - r'+note.revision+'.quanta','application/vnd.quanta.notebook+json',new Blob([JSON.stringify(note,null,2)]),{quantaId:note.id,quantaHash:hash,quantaParent:index.entries[note.id]?.baseHash??''});index.entries[note.id]={remoteId:file.id,baseHash:hash};index.tombstones=(await webRead<Index>('sync',freshIndex())).tombstones;await webWrite('sync',index);}
+      for(const note of notes){const hash=await noteHash(note);if(index.entries[note.id]?.baseHash===hash)continue;const existing=remote.find(f=>f.appProperties.quantaId===note.id&&f.appProperties.quantaHash===hash);const file=existing??await upload(notesFolder,note.title.replace(/[<>:"\/\\|?*]/g,'_')+' - r'+note.revision+'.quanta','application/vnd.quanta.notebook+json',new Blob([JSON.stringify(note,null,2)]),{quantaId:note.id,quantaHash:hash,quantaParent:index.entries[note.id]?.baseHash??''});index.entries[note.id]={remoteId:file.id,baseHash:hash};await commitIndex(index);}
       const exports=await list(`trashed=false and '${exportsFolder}' in parents`);const jobs=await webRead<ExportJob[]>('export-queue',[]);
-      for(const job of jobs){if(!exports.some(f=>f.appProperties.quantaJob===job.id)){const bytes=Uint8Array.from(atob(job.data),c=>c.charCodeAt(0));const file=await upload(exportsFolder,job.name,job.mime,new Blob([bytes]),{quantaJob:job.id},job.replace?exports.find(f=>f.name===job.name)?.id:undefined);exports.push(file);}const current=await webRead<ExportJob[]>('export-queue',[]);await webWrite('export-queue',current.filter(j=>j.id!==job.id));}
-      index.lastSync=new Date().toISOString();index.tombstones=(await webRead<Index>('sync',freshIndex())).tombstones;await webWrite('sync',index);status={...status,state:'idle',message:'Your notebooks are up to date.'};return this.status();
+      for(const job of jobs){if(!exports.some(f=>f.appProperties.quantaJob===job.id)){const bytes=Uint8Array.from(atob(job.data),c=>c.charCodeAt(0));const file=await upload(exportsFolder,job.name,job.mime,new Blob([bytes]),{quantaJob:job.id},job.replace?exports.find(f=>f.name===job.name)?.id:undefined);exports.push(file);}await webWithLock('export-queue',async()=>{const current=await webRead<ExportJob[]>('export-queue',[]);await webWrite('export-queue',current.filter(j=>j.id!==job.id));});}
+      index.lastSync=new Date().toISOString();await commitIndex(index);status={...status,state:'idle',message:'Your notebooks are up to date.'};return this.status();
     };
-    running=execute();try{return await running;}catch(e){status={...status,state:'offline',message:String(e)};throw e;}finally{running=null;}
+    running=webWithLock('drive-sync',execute);try{return await running;}catch(e){status={...status,state:'offline',message:String(e)};throw e;}finally{running=null;}
   },
 };

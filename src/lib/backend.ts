@@ -3,7 +3,7 @@ import { defaultSettings, validateNotebook, type Bootstrap, type Notebook, type 
 import { webDrive } from './web-drive';
 
 export const native = isTauri();
-import { webRead as read, webWrite as write, requestPersistentStorage } from './web-store';
+import { webRead as read, webWrite as write, webWithLock, requestPersistentStorage } from './web-store';
 let previewUnlocked = false;
 function guard() { if (!previewUnlocked) throw new Error('Unlock QUANTA to continue.'); }
 const toB64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -41,29 +41,24 @@ export const backend = {
   async listNotes(): Promise<Notebook[]> { if (native) return invoke('list_notes'); guard(); return read<Notebook[]>('notes', []); },
   async saveNote(note: Notebook): Promise<void> {
     if (native) return invoke('save_note', { note });
-    guard(); validateNotebook(note);
-    const notes = await read<Notebook[]>('notes', []); const i = notes.findIndex(n => n.id === note.id);
-    if (i >= 0) {
-      if (note.revision <= notes[i].revision && JSON.stringify(note)!==JSON.stringify(notes[i])) throw new Error('A newer notebook revision exists locally. Keep your working draft as a new notebook.');
-      const versions = await read<Notebook[]>('versions.' + note.id, []);
-      const captured=await read<number>('snapshot-time.'+note.id,0);
-      if (!versions[0] || Date.now()-captured>=60000) {await write('versions.'+note.id,[notes[i],...versions].slice(0,20));await write('snapshot-time.'+note.id,Date.now());}
-      notes[i] = note;
-    } else notes.push(note);
-    await write('notes', notes);
+    guard();return webWithLock('notes-write',()=>saveWebNote(note));
   },
   async trashNote(id: string): Promise<void> {
     if (native) return invoke('trash_note', { id }); guard();
-    const notes = await read<Notebook[]>('notes', []); const note = notes.find(n => n.id === id);
-    if (note) await write('trash', [note, ...await read<Notebook[]>('trash', [])]);
-    await webDrive.tombstone(id);
-    await write('notes', notes.filter(n => n.id !== id));
+    return webWithLock('notes-write',async()=>{
+      const notes = await read<Notebook[]>('notes', []); const note = notes.find(n => n.id === id);
+      if (note) await write('trash', [note, ...await read<Notebook[]>('trash', []).then(trash=>trash.filter(n=>n.id!==id))]);
+      await webDrive.tombstone(id);
+      await write('notes', notes.filter(n => n.id !== id));
+    });
   },
   async listTrash(): Promise<Notebook[]> { if (native) return invoke('list_trash'); guard(); return read('trash', []); },
   async restoreNote(id: string): Promise<void> {
     if (native) return invoke('restore_note', { id }); guard();
-    const trash = await read<Notebook[]>('trash', []); const n = trash.find(n => n.id === id);
-    if (n) { await this.saveNote({...n,revision:n.revision+1,updatedAt:new Date().toISOString()}); await write('trash', trash.filter(n => n.id !== id)); await webDrive.restore(id); }
+    return webWithLock('notes-write',async()=>{
+      const trash = await read<Notebook[]>('trash', []); const n = trash.find(n => n.id === id);
+      if (n) { await saveWebNote({...n,revision:n.revision+1,updatedAt:new Date().toISOString()}); await write('trash', trash.filter(n => n.id !== id)); await webDrive.restore(id); }
+    });
   },
   async saveSettings(settings: Settings): Promise<void> {
     if (native) return invoke('save_settings', { settings }); guard(); await write('settings', settings);
@@ -104,3 +99,16 @@ export const backend = {
   },
   async uninstallPlugin(id: string): Promise<void> { if (native) return invoke('uninstall_plugin', { id }); await write('plugins', (await read<InstalledPlugin[]>('plugins', [])).filter(p => p.manifest.id !== id)); },
 };
+
+async function saveWebNote(note:Notebook):Promise<void>{
+    validateNotebook(note);
+    const notes = await read<Notebook[]>('notes', []); const i = notes.findIndex(n => n.id === note.id);
+    if (i >= 0) {
+      if (note.revision <= notes[i].revision && JSON.stringify(note)!==JSON.stringify(notes[i])) throw new Error('A newer notebook revision exists locally. Keep your working draft as a new notebook.');
+      const versions = await read<Notebook[]>('versions.' + note.id, []);
+      const captured=await read<number>('snapshot-time.'+note.id,0);
+      if (!versions[0] || Date.now()-captured>=60000) {await write('versions.'+note.id,[notes[i],...versions].slice(0,20));await write('snapshot-time.'+note.id,Date.now());}
+      notes[i] = note;
+    } else notes.push(note);
+    await write('notes', notes);
+}

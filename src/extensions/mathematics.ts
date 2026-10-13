@@ -17,7 +17,11 @@ export const mathExtension = (inline: boolean) => Node.create<{getMacros: () => 
     return ({node, getPos, editor}) => {
       const dom = document.createElement(inline?'span':'div'); dom.className = inline?'math-inline':'math-block';
       dom.setAttribute('data-type', `math-${inline?'inline':'block'}`); dom.contentEditable = 'false';
-      const field = new MathfieldElement(); applyMathMacros(field, this.options.getMacros()); field.value = node.attrs.latex;
+      const field = new MathfieldElement(); field.value = node.attrs.latex;
+      field.addEventListener('mount',()=>{
+        applyMathMacros(field,this.options.getMacros());
+        field.setValue(node.attrs.latex,{silenceNotifications:true});
+      },{once:true});
       field.mathVirtualKeyboardPolicy = 'manual'; field.setAttribute('aria-label', 'Editable equation');
       field.placeholder = inline ? 'x' : 'Click to write an equation';
       const handleInput = () => {

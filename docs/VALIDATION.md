@@ -7,7 +7,7 @@ Initial implementation, 13 October 2026. This record distinguishes completed che
 - TypeScript strict compilation: passed.
 - Production frontend build: passed.
 - Standalone web build with relative assets, service worker, and validated browser TeX WebAssembly: passed.
-- Frontend tests (14 passed): save serialization, failure retention, concurrent flushes, equation interchange, Markdown sanitization, file validation, StarMath conversion, and IndexedDB persistence.
+- Frontend tests (15 passed): save serialization, failure retention, concurrent flushes, equation interchange, Markdown sanitization, file validation, StarMath conversion, IndexedDB persistence, and preservation of concurrent notebook/export writes.
 - Rust core tests (11 passed): atomic local storage, stale-write refusal, path validation, recovery of healthy notes beside a damaged file, trash/restore, durable export queues, password hashing, PKCE, callback state checks, and immutable conflict branches.
 - Rust core Clippy with warnings denied: passed.
 - Rust formatting check: passed.
@@ -17,7 +17,7 @@ Initial implementation, 13 October 2026. This record distinguishes completed che
 
 - Repository: `dmdelia/quanta-app`; source and `AGENTS.md` published to `main`.
 - Initial checks job, run 1: passed, including the two real-browser editor tests for save/reload/password, equation insertion, themes, focus mode, and Markdown download.
-- Additional macro and real PDF/PNG download checks, native launch smoke checks, and release packaging have been added and await the next CI run.
+- Run 2 exposed a MathLive mount-order regression introduced by the visual macro wiring. That regression is fixed; additional macro and real PDF/PNG download checks, native launch smoke checks, and release packaging await a successful new CI run.
 
 ## Blocked or pending
 
@@ -33,9 +33,9 @@ Initial implementation, 13 October 2026. This record distinguishes completed che
 ## Follow-up acceptance checks
 
 1. Run the Actions pipeline and resolve all E2E and platform build errors.
-3. Download the native artifacts, verify checksums, and perform launch and save/reopen checks on Windows and Apple Silicon.
-4. Register the Desktop and Web clients in one Google Cloud project, configure through the app, and verify offline editing followed by successful sync.
-5. Verify actual PDF/PNG/HTML exports, real TeX compilation, and an enabled example plugin.
-6. Set Settings → Pages → Source to GitHub Actions, then verify the deployed URL, subpath assets, offline reload, and browser Google sign-in. The connector can publish repository code but cannot change the Pages administration setting; the standard workflow token cannot initially enable Pages either.
+2. Download the native artifacts, verify checksums, and perform launch and save/reopen checks on Windows and Apple Silicon.
+3. Register the Desktop and Web clients in one Google Cloud project, configure through the app, and verify offline editing followed by successful sync.
+4. Verify actual PDF/PNG/HTML exports, real TeX compilation, and an enabled example plugin.
+5. Set Settings → Pages → Source to GitHub Actions, then verify the deployed URL, subpath assets, offline reload, and browser Google sign-in. The connector can publish repository code but cannot change the Pages administration setting; the standard workflow token cannot initially enable Pages either.
 
 The implementation is not yet declared feature-complete or bug-free. Broad LaTeX support comes from the TeX engines; full LibreOffice native-format and formatting compatibility is not implemented. See compatibility.md.

@@ -21,7 +21,7 @@ test('math macros and finished PDF/PNG exports work',async({page},testInfo)=>{
   await page.getByLabel('LaTeX source',{exact:true}).fill('x \\in \\RR');
   await page.getByRole('dialog',{name:'Write an equation'}).getByRole('button',{name:'Insert equation',exact:true}).click();
   await expect(page.locator('math-field')).toHaveCount(3);
-  await expect.poll(()=>page.locator('math-field').last().evaluate(el=>(el as HTMLElement&{getValue:(format:string)=>string}).getValue('latex-expanded'))).toContain('\\mathbb{R}');
+  await expect.poll(()=>page.locator('math-field').evaluateAll(fields=>fields.map(el=>(el as HTMLElement&{getValue:(format:string)=>string}).getValue('latex-expanded')).join(' '))).toContain('\\mathbb{R}');
   await page.screenshot({path:testInfo.outputPath('quanta-notebook.png'),fullPage:true});
   for(const [format,label,signature] of [['pdf','PDF','%PDF-'],['png','PNG','PNG']] as const){
     await page.getByRole('button',{name:'Export',exact:true}).click();

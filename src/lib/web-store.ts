@@ -1,5 +1,13 @@
 const DATABASE='quanta-workspace';const TABLE='records';
 let connection:Promise<IDBDatabase>|null=null;
+const pending=new Map<string,Promise<unknown>>();
+export async function webWithLock<T>(name:string,operation:()=>Promise<T>):Promise<T>{
+  if(navigator.locks)return navigator.locks.request('quanta-'+name,operation);
+  // Serialize within this window when the browser has no Web Locks implementation.
+  const previous=pending.get(name)??Promise.resolve();
+  const next=previous.catch(()=>{}).then(operation);pending.set(name,next);
+  try{return await next;}finally{if(pending.get(name)===next)pending.delete(name);}
+}
 function database():Promise<IDBDatabase>{
   if(!connection)connection=new Promise((resolve,reject)=>{
     const request=indexedDB.open(DATABASE,1);request.onupgradeneeded=()=>request.result.createObjectStore(TABLE);
