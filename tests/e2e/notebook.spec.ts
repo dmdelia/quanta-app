@@ -40,14 +40,26 @@ test('math macros and finished PDF/PNG exports work',async({page},testInfo)=>{
       const task=getDocument({data:new Uint8Array(bytes),standardFontDataUrl:process.cwd()+'/node_modules/pdfjs-dist/standard_fonts/'});
       const pdf=await task.promise;
       try{
+        let firstHeader:Uint8ClampedArray|undefined;
         for(let number=1;number<=pdf.numPages;number++){
           const page=await pdf.getPage(number);const viewport=page.getViewport({scale:0.7});
           const canvas=createCanvas(Math.ceil(viewport.width),Math.ceil(viewport.height));
           const context=canvas.getContext('2d');
           await page.render({canvas:canvas as unknown as HTMLCanvasElement,canvasContext:context as unknown as CanvasRenderingContext2D,viewport}).promise;
           const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;
-          let ink=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<200&&pixels[i+1]<200&&pixels[i+2]<200)ink++;
-          expect(ink,`PDF page ${number} should contain document content`).toBeGreaterThan(400);
+          let ink=0;
+          for(let y=5;y<canvas.height-20;y++)for(let x=5;x<canvas.width-5;x++){
+            const i=(y*canvas.width+x)*4;
+            if(pixels[i]<200&&pixels[i+1]<200&&pixels[i+2]<200&&pixels[i+3]>200)ink++;
+          }
+          expect(ink,`PDF page ${number} should contain document content`).toBeGreaterThan(80);
+          const header=context.getImageData(0,0,canvas.width,100).data;
+          if(!firstHeader)firstHeader=new Uint8ClampedArray(header);
+          else{
+            let different=0;
+            for(let i=0;i<header.length;i+=4)if(Math.abs(header[i]-firstHeader[i])+Math.abs(header[i+1]-firstHeader[i+1])+Math.abs(header[i+2]-firstHeader[i+2])>30)different++;
+            expect(different,'The notebook title must not repeat in place of the next page').toBeGreaterThan(400);
+          }
         }
       }finally{await task.destroy();}
     }

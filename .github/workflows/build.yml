@@ -96,9 +96,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.1.0-preview.4 --json tagName >/dev/null 2>&1; then
-            gh release edit v0.1.0-preview.4 --draft
-          fi
+          for tag in v0.1.0-preview.4 v0.1.0-preview.6; do
+            if gh release view "$tag" --json tagName >/dev/null 2>&1; then
+              gh release edit "$tag" --draft
+            fi
+          done
       - name: Publish verified preview downloads
         env:
           GH_TOKEN: ${{ github.token }}

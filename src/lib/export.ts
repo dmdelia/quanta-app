@@ -48,13 +48,23 @@ export async function renderExport(note: Notebook, settings: Settings, format: E
     const {jsPDF}=await import('jspdf');
     const pdf=new jsPDF({orientation:'portrait',unit:'px',format:settings.paperSize==='letter'?'letter':'a4',hotfixes:['px_scaling']});
     const pdfW=pdf.internal.pageSize.getWidth(); const pdfH=pdf.internal.pageSize.getHeight();
-    const cuts=pageCuts(article,pageHeight); const fonts=await getFontEmbedCSS(article,{preferredFontFormat:'woff2'});
+    const cuts=pageCuts(article,pageHeight-96); const fonts=await getFontEmbedCSS(article,{preferredFontFormat:'woff2'});
+    const svgSource=await toSvg(article,{width,height,fontEmbedCSS:fonts});
+    const svgText=await(await fetch(svgSource)).text();
+    const svg=new DOMParser().parseFromString(svgText,'image/svg+xml').documentElement;
+    svg.setAttribute('width',String(width));svg.setAttribute('height',String(pageHeight));
     for(let page=0;page<cuts.length-1;page++) {
       const start=cuts[page]; const span=cuts[page+1]-start;
-      const canvas=await toCanvas(article,{width,height:pageHeight,pixelRatio:settings.exportScale,backgroundColor:'#ffffff',fontEmbedCSS:fonts,
-        style:{position:'relative',left:'0',top:`-${start}px`,height:`${height}px`,margin:'0'}});
+      const padding=page===0?0:48;
+      svg.setAttribute('viewBox',`0 ${start-padding} ${width} ${pageHeight}`);
+      const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(new XMLSerializer().serializeToString(svg));
+      const canvas=document.createElement('canvas');canvas.width=width*settings.exportScale;canvas.height=pageHeight*settings.exportScale;
+      const image=new Image();image.src=url;await image.decode();
+      const painting=canvas.getContext('2d')!;painting.fillStyle='#fff';painting.fillRect(0,0,canvas.width,canvas.height);
+      painting.drawImage(image,0,0,canvas.width,canvas.height);
+      if(padding)painting.fillRect(0,0,canvas.width,padding*settings.exportScale);
       // Blank out the area below this page's cut, otherwise the next line would repeat.
-      const context=canvas.getContext('2d')!;context.fillStyle='#fff';context.fillRect(0,span*settings.exportScale,canvas.width,canvas.height-span*settings.exportScale);
+      const context=canvas.getContext('2d')!;context.fillStyle='#fff';context.fillRect(0,(span+padding)*settings.exportScale,canvas.width,canvas.height-(span+padding)*settings.exportScale);
       if(page>0)pdf.addPage();
       pdf.addImage(canvas,'PNG',0,0,pdfW,pdfH,undefined,'FAST');
       pdf.setFontSize(8);pdf.setTextColor(130);pdf.text(`${page+1} / ${cuts.length-1}`,pdfW/2,pdfH-12,{align:'center'});
@@ -78,7 +88,7 @@ function mountExportNode(node:HTMLElement):HTMLElement{
 }
 function pageCuts(article:HTMLElement,pageHeight:number):number[] {
   const top=article.getBoundingClientRect().top;const height=article.scrollHeight;const boundaries:number[]=[];
-  article.querySelectorAll('p,li,tr,h1,h2,h3,blockquote,pre,figure,.equation').forEach(el=> {
+  article.querySelectorAll('p,li,tr,blockquote,pre,figure,.equation').forEach(el=> {
     const rect=el.getBoundingClientRect();boundaries.push(rect.bottom-top+10);
     // Long paragraphs can span a page. Text ranges give line boundaries without cutting letters.
     if(rect.height>pageHeight-180) {
