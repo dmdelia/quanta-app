@@ -1,0 +1,36 @@
+{
+  "format": "quanta.notebook",
+  "schemaVersion": 1,
+  "id": "12345678-1234-4234-9234-123456789abc",
+  "title": "ΔE & a_b",
+  "project": "General science",
+  "tags": [
+    "measurement",
+    "draft"
+  ],
+  "favorite": false,
+  "createdAt": "2026-10-13T00:00:00Z",
+  "updatedAt": "2026-10-13T01:00:00Z",
+  "revision": 4,
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "A measurement: α = 3."
+          }
+        ]
+      },
+      {
+        "type": "mathBlock",
+        "attrs": {
+          "latex": "\\frac{a}{b}"
+        }
+      }
+    ]
+  },
+  "texSource": ""
+}

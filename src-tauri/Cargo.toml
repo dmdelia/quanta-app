@@ -1,0 +1,50 @@
+[package]
+name = "quanta"
+version = "0.1.0"
+description = "A quiet desktop notebook for scientific thinking"
+authors = ["QUANTA"]
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "quanta_core"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "quanta"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[features]
+default = ["desktop"]
+desktop = ["dep:tauri", "dep:tauri-plugin-dialog", "dep:tauri-build"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [], optional = true }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "net", "io-util", "process", "macros"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "multipart"] }
+uuid = { version = "1", features = ["v4", "v5", "serde"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+argon2 = "0.5"
+rand = "0.8"
+base64 = "0.22"
+sha2 = "0.10"
+url = "2"
+tempfile = "3"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+open = "5"
+tauri = { version = "2", optional = true, features = [] }
+tauri-plugin-dialog = { version = "2", optional = true }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[dev-dependencies]
+tempfile = "3"

@@ -1,0 +1,15 @@
+{
+  "manifest": {
+    "id": "quanta.si-reference",
+    "name": "SI reference",
+    "version": "1.0.0",
+    "description": "Insert a compact table of SI quantities and units.",
+    "apiVersion": 1,
+    "author": "QUANTA",
+    "entry": "plugin.js",
+    "permissions": [
+      "insert-content"
+    ]
+  },
+  "source": "quanta.registerCommand({id:'si-reference',title:'Insert SI reference'},async api=>{\n  api.insertMarkdown('## SI reference\\n\\n| Quantity | Symbol | SI unit |\\n| --- | --- | --- |\\n| Length | $l$ | m |\\n| Mass | $m$ | kg |\\n| Time | $t$ | s |\\n| Temperature | $T$ | K |\\n| Force | $F$ | N |\\n| Energy | $E$ | J |\\n\\n');\n  api.notify('SI reference inserted.');\n});\n"
+}

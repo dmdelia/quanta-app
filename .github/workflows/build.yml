@@ -1,0 +1,98 @@
+name: QUANTA verified builds
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quanta-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: dtolnay/rust-toolchain@stable
+        with: {components: 'rustfmt, clippy'}
+      - run: cargo test --locked --no-default-features
+        working-directory: src-tauri
+      - run: cargo clippy --locked --no-default-features -- -D warnings
+        working-directory: src-tauri
+      - run: cargo fmt --check
+        working-directory: src-tauri
+  native:
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            name: Windows-x64
+          - os: macos-15
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+            name: Apple-Silicon
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - uses: dtolnay/rust-toolchain@stable
+        with: {targets: '${{ matrix.target }}'}
+      - uses: Swatinem/rust-cache@v2
+        with: {workspaces: 'src-tauri -> target'}
+      - run: npm ci
+      - run: node scripts/package-plugins.mjs
+      - run: node scripts/prepare-engine.mjs ${{ matrix.target }}
+      - run: cargo test --locked --no-default-features
+        working-directory: src-tauri
+      - run: cargo check --locked --target ${{ matrix.target }}
+        working-directory: src-tauri
+      - run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QUANTA-${{ matrix.name }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/
+            src-tauri/target/${{ matrix.target }}/release/quanta.exe
+          if-no-files-found: error
+          retention-days: 30
+  web:
+    needs: native
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: npm ci
+      - run: npm run build:web
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: dist}
+  pages:
+    needs: web
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - id: deployment
+        uses: actions/deploy-pages@v4

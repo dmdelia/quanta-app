@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {createHash} from 'node:crypto';
+const root=path.resolve('dist');const assets=[];
+function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory()){if(entry.name!=='tex')walk(file);}else assets.push(path.relative(root,file).replaceAll('\\','/'));}}walk(root);
+const hash=createHash('sha256');for(const file of assets.sort()){hash.update(file);hash.update(fs.readFileSync(path.join(root,file)));}const version=hash.digest('hex').slice(0,16);
+const script=`const CACHE='quanta-code-${version}';const TEX='quanta-tex-v1';const ASSETS=${JSON.stringify(assets)};
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS.map(file=>new URL(file,self.registration.scope).href)))));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('quanta-code-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{const request=event.request;if(request.method!=='GET')return;const url=new URL(request.url);const local=url.origin===self.location.origin&&url.href.startsWith(self.registration.scope);const tex=/^https:\\/\\/texlive[0-9]*\\.swiftlatex\\.com\\//.test(url.href);if(!local&&!tex)return;if(request.mode==='navigate'){event.respondWith(caches.open(CACHE).then(async cache=>(await cache.match(new URL('index.html',self.registration.scope).href))||fetch(request)));return;}event.respondWith(caches.open(tex||url.pathname.includes('/tex/')?TEX:CACHE).then(async cache=>{const cached=await cache.match(request);if(cached)return cached;const response=await fetch(request);if(response.ok)cache.put(request,response.clone());return response;}));});`;
+fs.writeFileSync(path.join(root,'sw.js'),script);fs.writeFileSync(path.join(root,'.nojekyll'),'');
+console.log(`Prepared standalone web build and offline cache ${version}. TeX loads on demand.`);

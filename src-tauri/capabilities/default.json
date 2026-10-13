@@ -1,0 +1,6 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability", "description": "QUANTA main window: dialogs and standard window controls.",
+  "windows": ["main"],
+  "permissions": ["core:default", "core:window:allow-set-title", "core:window:allow-close", "core:window:allow-destroy", "dialog:allow-open", "dialog:allow-save"]
+}

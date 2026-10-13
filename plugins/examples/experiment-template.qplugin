@@ -1,0 +1,16 @@
+{
+  "manifest": {
+    "id": "quanta.experiment-template",
+    "name": "Experiment structure",
+    "version": "1.0.0",
+    "description": "Insert a reproducible structure for an experiment or scientific note.",
+    "apiVersion": 1,
+    "author": "QUANTA",
+    "entry": "plugin.js",
+    "permissions": [
+      "read-note",
+      "insert-content"
+    ]
+  },
+  "source": "quanta.registerCommand({id:'experiment-template',title:'Insert experiment structure'},async api=>{\n  const note=api.getNotebook();\n  api.insertMarkdown('## Question\\n\\nWhat are we trying to establish?\\n\\n## Assumptions\\n\\n- \\n\\n## Method\\n\\nDescribe the setup, units, and controls.\\n\\n## Measurements\\n\\n| Measurement | Value | Unit | Uncertainty |\\n| --- | --- | --- | --- |\\n| | | | |\\n\\n## Interpretation\\n\\nWhat would falsify the result?\\n\\n## Sources\\n\\n- \\n');\n  api.notify('Experiment structure inserted into '+note.title+'.');\n});\n"
+}
