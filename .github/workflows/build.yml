@@ -57,7 +57,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with: {targets: '${{ matrix.target }}'}
       - uses: Swatinem/rust-cache@v2
-        with: {workspaces: 'src-tauri -> target'}
+        with:
+          workspaces: 'src-tauri -> target'
+          save-if: ${{ !cancelled() }}
       - run: npm ci
       - run: node scripts/package-plugins.mjs
       - run: node scripts/prepare-engine.mjs ${{ matrix.target }}
@@ -91,6 +93,13 @@ jobs:
           pattern: QUANTA-*
           path: installers
       - run: node scripts/prepare-release.mjs
+      - name: Withdraw the initial preview with the pagination defect
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.1.0-preview.4 --json tagName >/dev/null 2>&1; then
+            gh release edit v0.1.0-preview.4 --draft
+          fi
       - name: Publish verified preview downloads
         env:
           GH_TOKEN: ${{ github.token }}

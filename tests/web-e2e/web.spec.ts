@@ -37,7 +37,7 @@ test('the Pages subpath reloads offline and worker plugins edit the notebook',as
 });
 
 test('the browser TeX worker compiles a real PDF',async({page},testInfo)=>{
-  test.setTimeout(180000);
+  test.setTimeout(240000);
   await start(page);
   await page.getByRole('button',{name:'LaTeX',exact:true}).click();
   await page.getByLabel('LaTeX document source').fill(String.raw`\documentclass{article}
@@ -54,4 +54,10 @@ QUANTA browser typesetting.
   const file=testInfo.outputPath('browser-tex.pdf');
   await download.saveAs(file);
   expect((await fs.readFile(file)).subarray(0,5).toString()).toBe('%PDF-');
+  await page.getByRole('button',{name:'Export',exact:true}).click();
+  await page.getByRole('button',{name:/^PNG /}).click();
+  const exporting=page.waitForEvent('download',{timeout:130000});
+  await page.getByRole('button',{name:'Export PNG',exact:true}).click();
+  const png=await exporting;const image=testInfo.outputPath('browser-tex.png');await png.saveAs(image);
+  expect((await fs.readFile(image)).subarray(1,4).toString()).toBe('PNG');
 });

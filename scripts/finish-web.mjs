@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 const root=path.resolve('dist');const assets=[];
-function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory()){if(entry.name!=='tex')walk(file);}else assets.push(path.relative(root,file).replaceAll('\\','/'));}}walk(root);
+function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,entry.name);if(entry.isDirectory()){if(!['tex','pdfjs'].includes(entry.name))walk(file);}else assets.push(path.relative(root,file).replaceAll('\\','/'));}}walk(root);
 const hash=createHash('sha256');for(const file of assets.sort()){hash.update(file);hash.update(fs.readFileSync(path.join(root,file)));}const version=hash.digest('hex').slice(0,16);
 const script=`const CACHE='quanta-code-${version}';const TEX='quanta-tex-v1';const ASSETS=${JSON.stringify(assets)};
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS.map(file=>new URL(file,self.registration.scope).href)))));

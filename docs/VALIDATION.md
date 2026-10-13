@@ -18,16 +18,18 @@ Initial implementation, 13 October 2026. This record distinguishes completed che
 - Repository: `dmdelia/quanta-app`; source and `AGENTS.md` published to `main`.
 - Initial checks job, run 1: passed, including the two real-browser editor tests for save/reload/password, equation insertion, themes, focus mode, and Markdown download.
 - Run 2 exposed a MathLive mount-order regression introduced by the visual macro wiring. The regression was fixed; run 3 passed all three browser specifications, including custom macro expansion and actual PDF/PNG downloads.
-- Run 3 output inspection found a blank PNG despite a valid PNG signature. The export mount has been corrected, and the browser test now checks for visible ink. Production web tests also cover the Pages subpath, offline reload, worker plugin execution, and real browser TeX compilation. These additions await the next CI run.
+- Run 3 output inspection found a blank PNG despite a valid PNG signature. Run 4 verified the corrected PNG with actual image pixels and visual inspection, including matrices and superscripts. PDF pagination subsequently exposed a separate blank-page issue; PDF now renders from the original measured article, and every exported PDF page is checked for visible content. This correction awaits the next CI run.
+- Run 4 built both native distributions successfully. Apple Silicon: `.dmg`, archived `.app`, ad-hoc code-signature verification, offline scientific TeX compile, and a ten-second bundled-app launch. Windows x64: setup `.exe`, offline scientific TeX compile, silent installation, bundled-engine presence, and a ten-second installed-app launch. These are smoke checks, not complete interactive acceptance tests.
+- Production web tests cover the Pages subpath, offline reload, worker plugin execution, and real browser TeX compilation. The latest source also adds TeX-derived PDF/PNG exports to all four destinations and a lazily loaded PDF renderer. Its matching CI run remains required before recommending those new downloads.
 
 ## Blocked or pending
 
-- Native Windows and Apple Silicon builds: matching-host Actions jobs are running. The current local build container lacks Linux WebKitGTK development dependencies; this does not constitute a successful native build.
+- Native Windows and Apple Silicon packaging and launch smoke checks passed in run 4. The newest PDF export correction and source-mode exports still need their matching build. The local build container lacks Linux WebKitGTK development dependencies.
 - Full desktop TeX compile: the package-bundle endpoint is unavailable from this environment. Engine preparation correctly fails rather than claiming an offline cache was completed.
 - Local real-browser UI/visual checks: the required local browser download did not complete in this managed environment. The original browser E2E tests passed in CI; generated screenshots and finished export files are retained by subsequent runs.
 - Actual Google sign-in, token persistence, two-device sync, and Drive export: pending valid OAuth registrations and a runtime authorization. Algorithm tests are not a substitute for those live checks.
 - Browser TeX runtime compilation: pending a real browser and access to the upstream package service.
-- macOS installation/launch, Windows installation/launch, signing, and notarization: pending actual platform builds and runtime sessions.
+- Interactive editor and installation acceptance on the user's Mac and Windows computer: pending. CI launch smoke checks succeeded. macOS is ad-hoc signed and Windows has no trusted publisher signature; notarization and trusted signing are not claimed.
 - GitHub repository: the user supplied the public `dmdelia/quanta-app` repository. It is now populated; no repository was created in the earlier account.
 - GitHub Pages publication: deliberately dependent on successful native build jobs. No Pages deployment has been claimed.
 

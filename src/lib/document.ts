@@ -124,7 +124,10 @@ export function nodeTex(node: JSONContent): string {
   }
 }
 export function notebookTex(note: Notebook, settings: Settings): string {
-  const macros = Object.entries(settings.customMacros).filter(([name])=>/^\\[a-zA-Z]+$/.test(name)).map(([name,value])=>`\\providecommand{${name}}{${value}}`).join('\n');
+  const macros = Object.entries(settings.customMacros).filter(([name])=>/^\\[a-zA-Z]+$/.test(name)).map(([name,value])=>{
+    const count=Math.max(0,...Array.from(value.matchAll(/#([1-9])/g),m=>Number(m[1])));
+    return `\\providecommand{${name}}${count?'['+count+']':''}{${value}}`;
+  }).join('\n');
   return `\\documentclass[11pt,${settings.paperSize === 'letter' ? 'letterpaper' : 'a4paper'}]{article}\n\\usepackage{amsmath,amssymb,mathtools,booktabs}\n\\usepackage[margin=25mm]{geometry}\n\\usepackage{hyperref}\n${macros}\n\\title{${escapeTex(note.title)}}\n\\author{${escapeTex(settings.author)}}\n\\date{}\n\\begin{document}\n\\maketitle\n${nodeTex(note.content)}\\end{document}\n`;
 }
 export function markdownToHtml(source: string): string {

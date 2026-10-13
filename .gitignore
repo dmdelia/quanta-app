@@ -8,6 +8,7 @@ src-tauri/resources/tex-cache/
 src-tauri/icons/android/
 src-tauri/icons/ios/
 public/tex/
+public/pdfjs/
 playwright-report/
 test-results/
 *.log

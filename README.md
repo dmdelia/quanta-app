@@ -33,7 +33,7 @@ QUANTA's notebook equation editor and full TeX compiler have different capabilit
 
 The interface follows the Liquid Glass design language with CSS glass materials and restrained controls. It uses Tauri's native desktop window, with a web-rendered editor. It does not claim to use Apple's SwiftUI Liquid Glass component implementation.
 
-Notebook PDF export preserves the visible page through high-resolution raster pages; compiled TeX PDF preserves TeX typesetting and vector text. SVG export contains a styled HTML `foreignObject`, so browser support is stronger than illustration-software import support.
+Notebook PDF export preserves the visible page through high-resolution raster pages; compiled TeX PDF preserves TeX typesetting and vector text. In LaTeX mode, the export dialog produces PDF, PNG, or original TeX source from the current document, with all four destinations. PNG stacks the compiled pages into one image within the image-size limit. SVG notebook export contains a styled HTML `foreignObject`, so browser support is stronger than illustration-software import support.
 
 Google requires an application OAuth registration. A desktop installer cannot invent one or reuse ChatGPT's Google authorization. Import the downloaded Desktop credentials in settings once. Configure the browser client separately. See [Google Drive](docs/google-drive.md).
 
@@ -43,7 +43,7 @@ The release workflow builds unsigned/ad-hoc-signed personal-use installers unles
 
 ## Development
 
-Use Node 22+, Rust stable, and the platform prerequisites for Tauri 2.
+Use Node 22.13+, Rust stable, and the platform prerequisites for Tauri 2.
 
 ```sh
 npm ci

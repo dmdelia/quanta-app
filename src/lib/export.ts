@@ -13,10 +13,16 @@ export function base64ToBytes(data: string): Uint8Array { return Uint8Array.from
 const blobBytes = async(blob:Blob)=>new Uint8Array(await blob.arrayBuffer());
 const canvasBlob = (canvas:HTMLCanvasElement)=>new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Image export failed.')),'image/png'));
 
-export async function renderExport(note: Notebook, settings: Settings, format: ExportFormat): Promise<Uint8Array> {
+export async function renderExport(note: Notebook, settings: Settings, format: ExportFormat,sourceMode=false): Promise<Uint8Array> {
+  if(sourceMode&&(format==='pdf'||format==='png')){
+    const compiled=await backend.compileTex(note.texSource||notebookTex(note,settings));
+    const bytes=base64ToBytes(compiled.data);
+    if(format==='pdf')return bytes;
+    const {pdfToPng}=await import('./tex-raster');return pdfToPng(bytes,settings.exportScale);
+  }
   if(format==='md') return new TextEncoder().encode(`# ${note.title}\n\n${nodeMarkdown(note.content)}`);
   if(format==='txt') return new TextEncoder().encode(`${note.title}\n\n${textContent(note.content)}`);
-  if(format==='tex') return new TextEncoder().encode(note.texSource || notebookTex(note,settings));
+  if(format==='tex') return new TextEncoder().encode(sourceMode?(note.texSource||notebookTex(note,settings)):notebookTex(note,settings));
   const {toCanvas,toSvg,getFontEmbedCSS}=await import('html-to-image');
   if(format==='html') {
     // Embed the fonts so the exported HTML is entirely independent of QUANTA.
@@ -45,13 +51,8 @@ export async function renderExport(note: Notebook, settings: Settings, format: E
     const cuts=pageCuts(article,pageHeight); const fonts=await getFontEmbedCSS(article,{preferredFontFormat:'woff2'});
     for(let page=0;page<cuts.length-1;page++) {
       const start=cuts[page]; const span=cuts[page+1]-start;
-      const viewport=document.createElement('div'); viewport.style.cssText=`width:${width}px;height:${pageHeight}px;overflow:hidden;background:white;position:relative;`;
-      const clone=article.cloneNode(true) as HTMLElement; clone.style.position='relative';clone.style.left='0';clone.style.top=`-${start}px`;
-      viewport.append(clone);
-      const viewportHost=mountExportNode(viewport);
-      let canvas:HTMLCanvasElement;
-      try{canvas=await toCanvas(viewport,{width,height:pageHeight,pixelRatio:settings.exportScale,backgroundColor:'#ffffff',fontEmbedCSS:fonts});}
-      finally{viewportHost.remove();}
+      const canvas=await toCanvas(article,{width,height:pageHeight,pixelRatio:settings.exportScale,backgroundColor:'#ffffff',fontEmbedCSS:fonts,
+        style:{position:'relative',left:'0',top:`-${start}px`,height:`${height}px`,margin:'0'}});
       // Blank out the area below this page's cut, otherwise the next line would repeat.
       const context=canvas.getContext('2d')!;context.fillStyle='#fff';context.fillRect(0,span*settings.exportScale,canvas.width,canvas.height-span*settings.exportScale);
       if(page>0)pdf.addPage();
@@ -94,9 +95,9 @@ function pageCuts(article:HTMLElement,pageHeight:number):number[] {
   cuts.push(Math.max(height,start+1));return cuts;
 }
 
-export async function exportNotebook(note:Notebook,settings:Settings,format:ExportFormat,target:ExportTarget,nameOverride?:string):Promise<string|null> {
+export async function exportNotebook(note:Notebook,settings:Settings,format:ExportFormat,target:ExportTarget,nameOverride?:string,sourceMode=false):Promise<string|null> {
   const name=(nameOverride?nameOverride.replace(new RegExp(`\\.${format}$`,'i'),''):safeFilename(note.title))+'.'+format;
-  const bytes=await renderExport(note,settings,format);
+  const bytes=await renderExport(note,settings,format,sourceMode);
   if(target==='drive'||target==='driveAs') {
     await backend.queueExport(name,bytesToBase64(bytes),mimeTypes[format],target==='drive');
     backend.syncNow().catch(()=>{});return 'Queued for Google Drive. QUANTA will retry if the connection is unavailable.';

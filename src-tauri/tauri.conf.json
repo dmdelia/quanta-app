@@ -4,7 +4,7 @@
   "build": { "beforeDevCommand": "npm run dev", "devUrl": "http://127.0.0.1:1420", "beforeBuildCommand": "npm run build", "frontendDist": "../dist" },
   "app": {
     "windows": [{ "label": "main", "title": "QUANTA", "width": 1280, "height": 840, "minWidth": 820, "minHeight": 560, "center": true, "backgroundColor": "#edf1f5", "titleBarStyle": "Overlay", "hiddenTitle": true }],
-    "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost data: blob:; worker-src 'self' blob:; frame-src blob:; object-src 'none'" }
+    "security": { "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost data: blob:; worker-src 'self' blob:; frame-src blob:; object-src 'none'" }
   },
   "bundle": {
     "active": true, "targets": ["app", "dmg", "nsis"], "category": "Productivity",

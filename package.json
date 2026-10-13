@@ -5,6 +5,8 @@
   "type": "module",
   "description": "A quiet desktop notebook for scientific thinking.",
   "scripts": {
+    "predev": "node scripts/prepare-pdf-assets.mjs",
+    "prebuild": "node scripts/prepare-pdf-assets.mjs",
     "dev": "vite --host 127.0.0.1 --port 1420",
     "build": "tsc -b && vite build",
     "build:web": "node scripts/prepare-web.mjs && npm run build && node scripts/finish-web.mjs",
@@ -33,10 +35,12 @@
     "lucide-react": "^0.577.0",
     "marked": "^17.0.3",
     "mathlive": "0.111.1",
+    "pdfjs-dist": "6.4.299",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.11",
     "@playwright/test": "^1.58.2",
     "@tauri-apps/cli": "2.12.2",
     "@types/katex": "^0.16.7",

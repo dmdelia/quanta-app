@@ -25,7 +25,7 @@ try {
   const output=path.join(destination,`tectonic-${target}${windows?'.exe':''}`);fs.copyFileSync(engine,output);if(!windows)fs.chmodSync(output,0o755);
   const cache=path.resolve('src-tauri/resources/tex-cache');fs.mkdirSync(cache,{recursive:true});
   const seed=path.join(temp,'warmup.tex');fs.writeFileSync(seed,String.raw`\documentclass{article}
-\usepackage{amsmath,amssymb,mathtools,graphicx,booktabs,siunitx,tikz,hyperref}
+\usepackage{amsmath,amssymb,mathtools,graphicx,booktabs,geometry,siunitx,tikz,hyperref}
 \begin{document}
 \[\frac{\partial f}{\partial x}+\int_0^1 x^2\,dx\]
 \begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}
