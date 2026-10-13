@@ -30,7 +30,7 @@ function QuantaApp() {
   const [unlocked,setUnlocked]=useState(false);const [settings,setSettings]=useState<Settings>(defaultSettings);
   const settingsRef=useRef(settings);const settingsWrites=useRef(Promise.resolve());
   const [notes,setNotes]=useState<Notebook[]>([]);const notesRef=useRef(notes);const [activeId,setActiveId]=useState('');
-  const activeRef=useRef(activeId);const [sidebar,setSidebar]=useState(true);const [focus,setFocus]=useState(false);
+  const activeRef=useRef(activeId);const editEpoch=useRef(0);const [sidebar,setSidebar]=useState(true);const [focus,setFocus]=useState(false);
   const [view,setView]=useState<'notebook'|'latex'>('notebook');const [search,setSearch]=useState('');const [filter,setFilter]=useState('All notebooks');
   const [dialog,setDialog]=useState<Dialog>(null);const closeDialog=useCallback(()=>setDialog(null),[]);
   const [saveState,setSaveState]=useState<'saved'|'unsaved'|'saving'|'error'>('saved');const [toast,setToast]=useState('');
@@ -70,7 +70,7 @@ function QuantaApp() {
   }
   useEffect(()=>{if(unlocked)void loadWorkspace().catch(e=>notify(String(e)));},[unlocked]); // Only initialize after the password gate.
   function edit(patch:Partial<Notebook>){
-    const current=noteRef.current;if(!current)return;
+    const current=noteRef.current;if(!current)return;editEpoch.current++;
     const next={...current,...patch,updatedAt:new Date().toISOString(),revision:current.revision+1};noteRef.current=next;
     notesRef.current=notesRef.current.map(n=>n.id===next.id?next:n);setNotes(notesRef.current);setSaveState('unsaved');queue.enqueue(next,settingsRef.current.autosaveMs);
   }
@@ -81,13 +81,17 @@ function QuantaApp() {
   }
   async function chooseNote(id:string){
     if(id===activeRef.current)return;
-    try{await queue.flush();const selected=notesRef.current.find(n=>n.id===id);if(!selected)return;setActiveId(id);activeRef.current=id;noteRef.current=selected;setView('notebook');await saveSettings({...settingsRef.current,lastNotebook:id});}
-    catch(e){notify('The current notebook must save before switching: '+String(e));}
+    try{await queue.flush();}catch(e){notify('Unsaved working drafts are kept in this window. You can export a copy while saving needs attention: '+String(e));}
+    const selected=notesRef.current.find(n=>n.id===id);if(!selected)return;
+    setActiveId(id);activeRef.current=id;noteRef.current=selected;setView('notebook');
+    try{await saveSettings({...settingsRef.current,lastNotebook:id});}catch{}
   }
   async function createNote(){
-    try{await queue.flush();const created=newNotebook('Untitled notebook',filter==='All notebooks'||filter==='Favorites'?'':filter);await backend.saveNote(created);
-      notesRef.current=[created,...notesRef.current];setNotes(notesRef.current);setActiveId(created.id);activeRef.current=created.id;noteRef.current=created;setView('notebook');setFilter('All notebooks');setSearch('');await saveSettings({...settingsRef.current,lastNotebook:created.id});
-    }catch(e){notify(String(e));}
+    const created=newNotebook('Untitled notebook',filter==='All notebooks'||filter==='Favorites'?'':filter);
+    editEpoch.current++;notesRef.current=[created,...notesRef.current];setNotes(notesRef.current);setActiveId(created.id);activeRef.current=created.id;noteRef.current=created;
+    setView('notebook');setFilter('All notebooks');setSearch('');setSaveState('unsaved');queue.enqueue(created,settingsRef.current.autosaveMs);
+    try{await Promise.all([queue.flush(),saveSettings({...settingsRef.current,lastNotebook:created.id})]);}
+    catch(e){notify('The working notebooks are kept in this window while saving needs attention: '+String(e));}
   }
   async function lockApp(){try{await queue.flush();await settingsWrites.current;await backend.lock();setUnlocked(false);setNotes([]);notesRef.current=[];noteRef.current=undefined;setDialog(null);setTutorial(false);}catch(e){notify('Could not finish saving before locking: '+String(e));}}
   async function handleSync(){
@@ -96,7 +100,7 @@ function QuantaApp() {
     try{await queue.flush();const status=await backend.syncStatus();setSync(status);if(!status.connected)return;
       const after=await backend.syncNow();setSync(after);
       // Keep an in-progress editor draft in memory. A stale disk write is refused by Rust.
-      if(!queue.dirty){const list=await backend.listNotes();setNotes(list);notesRef.current=list;const current=list.find(n=>n.id===activeRef.current);if(!current){setActiveId(list[0]?.id??'');}else if(noteRef.current&&JSON.stringify(current.content)!==JSON.stringify(noteRef.current.content)){setActiveId('');requestAnimationFrame(()=>setActiveId(current.id));}noteRef.current=current;}
+      if(!queue.dirty){const epoch=editEpoch.current;const list=await backend.listNotes();if(queue.dirty||editEpoch.current!==epoch)return;setNotes(list);notesRef.current=list;const current=list.find(n=>n.id===activeRef.current);if(!current){setActiveId(list[0]?.id??'');}else if(noteRef.current&&JSON.stringify(current.content)!==JSON.stringify(noteRef.current.content)){setActiveId('');requestAnimationFrame(()=>setActiveId(current.id));}noteRef.current=current;}
     }catch(e){setSync(await backend.syncStatus().catch(()=>({...initialSync,state:'error' as const,message:String(e)})));notify(String(e));}
     finally{syncRunning.current=false;setBusySync(false);}
   }
