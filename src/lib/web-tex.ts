@@ -1,5 +1,14 @@
+let formatLoading:Promise<Uint8Array>|null=null;
+function loadFormat():Promise<Uint8Array>{
+  if(!formatLoading)formatLoading=fetch(new URL('./tex/swiftlatexpdftex.fmt',document.baseURI)).then(async response=>{
+    if(!response.ok)throw new Error('The bundled browser TeX format is missing. Reload QUANTA online.');
+    return new Uint8Array(await response.arrayBuffer());
+  }).catch(error=>{formatLoading=null;throw error;});
+  return formatLoading;
+}
 export async function compileWebTex(source:string):Promise<{data:string;log:string}>{
   if(source.length>2*1024*1024)throw new Error('TeX source exceeds 2 MB.');
+  const format=await loadFormat();
   const url=new URL('./tex/swiftlatexpdftex.js',document.baseURI);
   const worker=new Worker(url,{name:'quanta-browser-tex'});
   const wait=(compile:boolean)=>new Promise<{pdf?:ArrayBuffer;log?:string;result:string;status?:number}>((resolve,reject)=>{
@@ -9,6 +18,8 @@ export async function compileWebTex(source:string):Promise<{data:string;log:stri
   });
   try{
     const ready=await wait(false);if(ready.result!=='ok')throw new Error('The browser TeX engine could not initialize.');
+    worker.postMessage({cmd:'settexliveurl',url:'https://texlive.texlyre.org/'});
+    worker.postMessage({cmd:'writefile',url:'swiftlatexpdftex.fmt',src:format});
     worker.postMessage({cmd:'writefile',url:'paper.tex',src:source});worker.postMessage({cmd:'setmainfile',url:'paper.tex'});
     const promise=wait(true);worker.postMessage({cmd:'compilelatex'});const result=await promise;
     if(result.result!=='ok'||!result.pdf)throw new Error('TeX compilation failed. Your source is still saved.\n\n'+(result.log??'Check the package connection and TeX syntax.'));
