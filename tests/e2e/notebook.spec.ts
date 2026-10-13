@@ -34,5 +34,16 @@ test('math macros and finished PDF/PNG exports work',async({page},testInfo)=>{
     const bytes=await fs.readFile(file);
     expect(bytes.length).toBeGreaterThan(2000);
     expect(bytes.subarray(format==='png'?1:0,format==='png'?4:5).toString()).toBe(signature);
+    if(format==='png'){
+      const ink=await page.evaluate(async data=>{
+        const image=new Image();image.src=data;await image.decode();
+        const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+        const ctx=canvas.getContext('2d')!;ctx.drawImage(image,0,0);
+        const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+        let count=0;for(let i=0;i<pixels.length;i+=4)if(pixels[i]<200&&pixels[i+1]<200&&pixels[i+2]<200&&pixels[i+3]>200)count++;
+        return count;
+      },'data:image/png;base64,'+bytes.toString('base64'));
+      expect(ink).toBeGreaterThan(1000);
+    }
   }
 });

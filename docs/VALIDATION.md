@@ -17,7 +17,8 @@ Initial implementation, 13 October 2026. This record distinguishes completed che
 
 - Repository: `dmdelia/quanta-app`; source and `AGENTS.md` published to `main`.
 - Initial checks job, run 1: passed, including the two real-browser editor tests for save/reload/password, equation insertion, themes, focus mode, and Markdown download.
-- Run 2 exposed a MathLive mount-order regression introduced by the visual macro wiring. That regression is fixed; additional macro and real PDF/PNG download checks, native launch smoke checks, and release packaging await a successful new CI run.
+- Run 2 exposed a MathLive mount-order regression introduced by the visual macro wiring. The regression was fixed; run 3 passed all three browser specifications, including custom macro expansion and actual PDF/PNG downloads.
+- Run 3 output inspection found a blank PNG despite a valid PNG signature. The export mount has been corrected, and the browser test now checks for visible ink. Production web tests also cover the Pages subpath, offline reload, worker plugin execution, and real browser TeX compilation. These additions await the next CI run.
 
 ## Blocked or pending
 

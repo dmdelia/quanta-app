@@ -107,6 +107,14 @@ jobs:
         with: {node-version: 22, cache: npm}
       - run: npm ci
       - run: npm run build:web
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --config playwright.web.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: QUANTA-web-checks
+          path: test-results/
+          retention-days: 14
       - uses: actions/upload-pages-artifact@v3
         with: {path: dist}
   pages:

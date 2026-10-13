@@ -20,13 +20,13 @@ export async function renderExport(note: Notebook, settings: Settings, format: E
   const {toCanvas,toSvg,getFontEmbedCSS}=await import('html-to-image');
   if(format==='html') {
     // Embed the fonts so the exported HTML is entirely independent of QUANTA.
-    const container=makeExportNode(note,settings); document.body.append(container);
+    const container=makeExportNode(note,settings); const host=mountExportNode(container);
     try {
       const fonts=await getFontEmbedCSS(container);
       return new TextEncoder().encode(`<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${safeFilename(note.title)}</title><style>${exportCss}\n${katexCss}\n${fonts}</style></head><body><article>${exportBody(note,settings)}</article></body></html>`);
-    } finally {container.remove();}
+    } finally {host.remove();}
   }
-  const article=makeExportNode(note,settings); document.body.append(article);
+  const article=makeExportNode(note,settings); const host=mountExportNode(article);
   try {
     await document.fonts.ready;
     const width=794; const pageHeight=settings.paperSize==='letter'?1028:1123;
@@ -48,8 +48,10 @@ export async function renderExport(note: Notebook, settings: Settings, format: E
       const viewport=document.createElement('div'); viewport.style.cssText=`width:${width}px;height:${pageHeight}px;overflow:hidden;background:white;position:relative;`;
       const clone=article.cloneNode(true) as HTMLElement; clone.style.position='relative';clone.style.left='0';clone.style.top=`-${start}px`;
       viewport.append(clone);
-      // html-to-image can render detached trees, provided dimensions are explicit.
-      const canvas=await toCanvas(viewport,{width,height:pageHeight,pixelRatio:settings.exportScale,backgroundColor:'#ffffff',fontEmbedCSS:fonts});
+      const viewportHost=mountExportNode(viewport);
+      let canvas:HTMLCanvasElement;
+      try{canvas=await toCanvas(viewport,{width,height:pageHeight,pixelRatio:settings.exportScale,backgroundColor:'#ffffff',fontEmbedCSS:fonts});}
+      finally{viewportHost.remove();}
       // Blank out the area below this page's cut, otherwise the next line would repeat.
       const context=canvas.getContext('2d')!;context.fillStyle='#fff';context.fillRect(0,span*settings.exportScale,canvas.width,canvas.height-span*settings.exportScale);
       if(page>0)pdf.addPage();
@@ -59,13 +61,19 @@ export async function renderExport(note: Notebook, settings: Settings, format: E
       await new Promise<void>(resolve=>setTimeout(resolve,0));
     }
     pdf.setProperties({title:note.title,author:settings.author,creator:'QUANTA'}); return new Uint8Array(pdf.output('arraybuffer'));
-  } finally {article.remove();}
+  } finally {host.remove();}
 }
 function makeExportNode(note:Notebook,settings:Settings):HTMLElement {
   const article=document.createElement('article');article.className='quanta-export';
-  article.style.cssText='width:794px;box-sizing:border-box;padding:48px;background:#fff;color:#172331;position:absolute;left:-10000px;top:0;font:16px/1.7 Georgia,serif;';
+  article.style.cssText='width:794px;box-sizing:border-box;padding:48px;background:#fff;color:#172331;position:relative;font:16px/1.7 Georgia,serif;';
   const style=document.createElement('style');style.textContent=exportCss.replace(/body\{/g,'.quanta-export{').replace(/article\{/g,'.quanta-export{')+katexCss;
   article.append(style);const content=document.createElement('div');content.innerHTML=exportBody(note,settings);article.append(content);return article;
+}
+function mountExportNode(node:HTMLElement):HTMLElement{
+  // Keep the rendered node at its own origin; only its parent is moved off screen.
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;left:-10000px;top:0;width:794px;pointer-events:none;';
+  host.setAttribute('aria-hidden','true');host.append(node);document.body.append(host);return host;
 }
 function pageCuts(article:HTMLElement,pageHeight:number):number[] {
   const top=article.getBoundingClientRect().top;const height=article.scrollHeight;const boundaries:number[]=[];

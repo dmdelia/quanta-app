@@ -7,5 +7,5 @@
     "allowImportingTsExtensions": true, "types": ["vite/client"],
     "noUnusedLocals": true, "noUnusedParameters": true
   },
-  "include": ["src", "tests", "vite.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "playwright.config.ts", "playwright.web.config.ts"]
 }
