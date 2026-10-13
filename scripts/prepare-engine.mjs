@@ -32,6 +32,11 @@ try {
 \end{document}`);
   if(target===targets[os.platform()]) {
     execFileSync(output,['--untrusted','--outdir',temp,seed],{stdio:'inherit',env:{...process.env,TECTONIC_CACHE_DIR:cache},timeout:240000});
+    fs.rmSync(path.join(temp,'warmup.pdf'),{force:true});
+    execFileSync(output,['--untrusted','--only-cached','--outdir',temp,seed],{stdio:'inherit',env:{...process.env,TECTONIC_CACHE_DIR:cache},timeout:120000});
+    if(!fs.readFileSync(path.join(temp,'warmup.pdf')).subarray(0,5).equals(Buffer.from('%PDF-')))throw Error('Offline TeX verification did not produce a PDF.');
+  } else {
+    throw Error('Prepare each distribution on its matching host to verify the bundled offline TeX cache.');
   }
   console.log(`Bundled Tectonic ${version} for ${target}; core scientific packages cached.`);
 } finally {fs.rmSync(temp,{recursive:true,force:true});}

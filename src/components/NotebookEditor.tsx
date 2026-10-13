@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -9,13 +9,17 @@ import { Bold, Italic, List, ListOrdered, Quote, Code2, Table2, ImagePlus, Undo2
 import { MathInline, MathBlock } from '../extensions/mathematics';
 import { markdownToHtml } from '../lib/document';
 import type { Settings } from '../lib/types';
+import type { MathfieldElement } from 'mathlive';
+import { applyMathMacros } from '../lib/math-macros';
 
 export interface EditorHandle {editor:Editor|null;insertEquation:(latex:string,inline:boolean)=>void;insertMarkdown:(source:string)=>void;getContent:()=>JSONContent;}
 export const NotebookEditor=forwardRef<EditorHandle,{content:JSONContent;settings:Settings;onChange:(content:JSONContent)=>void;onEquation:()=>void}>(({content,settings,onChange,onEquation},ref)=> {
-  const editor=useEditor({extensions:[StarterKit.configure({heading:{levels:[1,2,3]},link:{openOnClick:false,autolink:true}}),Placeholder.configure({placeholder:'Make room for a question, a calculation, a discovery…'}),Image.configure({allowBase64:true}),Table.configure({resizable:true}),TableRow,TableHeader,TableCell,MathInline,MathBlock],content,immediatelyRender:false,shouldRerenderOnTransaction:true,
+  const macros=useRef(settings.customMacros);macros.current=settings.customMacros;
+  const editor=useEditor({extensions:[StarterKit.configure({heading:{levels:[1,2,3]},link:{openOnClick:false,autolink:true}}),Placeholder.configure({placeholder:'Make room for a question, a calculation, a discovery…'}),Image.configure({allowBase64:true}),Table.configure({resizable:true}),TableRow,TableHeader,TableCell,MathInline.configure({getMacros:()=>macros.current}),MathBlock.configure({getMacros:()=>macros.current})],content,immediatelyRender:false,shouldRerenderOnTransaction:true,
     editorProps:{attributes:{class:'notebook-content',spellcheck:String(settings.spellcheck),'aria-label':'Notebook editor',role:'textbox','aria-multiline':'true'}},onUpdate:({editor})=>onChange(editor.getJSON()),
   });
   useEffect(()=>{editor?.setOptions({editorProps:{attributes:{class:'notebook-content',spellcheck:String(settings.spellcheck),'aria-label':'Notebook editor',role:'textbox','aria-multiline':'true'}}});},[editor,settings.spellcheck]);
+  useEffect(()=>{editor?.view.dom.querySelectorAll<MathfieldElement>('math-field').forEach(field=>applyMathMacros(field,settings.customMacros));},[editor,settings.customMacros]);
   useImperativeHandle(ref,()=>({editor,insertEquation:(latex,inline)=>{editor?.chain().focus().insertContent({type:inline?'mathInline':'mathBlock',attrs:{latex}}).run();},insertMarkdown:source=>editor?.chain().focus().insertContent(markdownToHtml(source)).run(),getContent:()=>editor?.getJSON()??content}),[editor,content]);
   async function addImage(){
     const input=document.createElement('input');input.type='file';input.accept='image/png,image/jpeg,image/webp,image/gif';

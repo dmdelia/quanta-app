@@ -23,11 +23,11 @@ Normal notebook startup does not require TeX compilation. TeX runs in a separate
 
 ## Automated pipeline
 
-`build.yml` checks TypeScript, unit tests, and real-browser editor tests, then builds both native platforms. It uploads artifacts for each commit. A dependent web job builds the static Pages artifact only after the native jobs succeed. The deployment job publishes only when Pages has been enabled for the repository and the triggering branch is `main`.
+`build.yml` checks TypeScript, unit tests, and real-browser editor tests, then builds both native platforms. It uploads distributions and browser evidence for each commit. After successful native builds and launch smoke checks, it creates a preview release with installers, the app archive, source, plugin examples, and checksums. A dependent web job builds the static Pages artifact after the native jobs and release succeed. The deployment job publishes only when Pages has been enabled for the repository and the triggering branch is `main`.
 
-The native jobs execute Rust tests and checks on their own OS. They use pinned lockfiles, prepare the matching TeX sidecar and cache, then build the installers. A compile is followed by basic artifact checks; actual launch, Google OAuth, and installation verification still need a real platform session.
+The native jobs execute Rust tests and checks on their own OS. They use pinned lockfiles, prepare the matching TeX sidecar and cache, and compile the seed document again with `--only-cached` before building the installers. macOS archives preserve executable permissions. Windows installs its actual NSIS installer silently into a temporary CI directory. Both jobs start the native executable and reject an immediate exit during a ten-second smoke check. This verifies a basic launch; interacting with the editor, Google OAuth, and installation under a normal user account still needs a real platform session.
 
-For a public web build, GitHub Pages may be enabled from Actions. A private repository requires an account plan that supports private-repository Pages. Do not make the source public automatically. A separate public repository containing only the built web assets is an alternative when needed.
+Enable Pages once from repository Settings → Pages → Build and deployment → Source → GitHub Actions. The standard `GITHUB_TOKEN` cannot initially enable a Pages site. Once enabled, the workflow maintains deployments automatically. A private repository requires an account plan that supports private-repository Pages. Do not make the source public automatically. A separate public repository containing only the built web assets is an alternative when needed.
 
 ## Signing
 

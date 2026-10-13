@@ -2,6 +2,8 @@
 
 **A quiet notebook for scientific thinking.**
 
+[Download preview builds](https://github.com/dmdelia/quanta-app/releases) · [Build status](https://github.com/dmdelia/quanta-app/actions) · [Validation](docs/VALIDATION.md)
+
 QUANTA brings formatted notes, editable mathematics, Markdown, and a complete LaTeX source workspace together in a minimal desktop application. Rust handles local files, password verification, Google authorization, sync, and TeX compilation. A standalone web build shares the notebook editor and `.quanta` format, with IndexedDB, Google Identity Services, offline caching, and an on-demand PDFTeX WebAssembly worker.
 
 ## Everyday use
@@ -51,7 +53,7 @@ npm run desktop:dev
 
 For frontend development: `npm run dev`. For a production web build: `npm run build:web`. For the desktop build: `npm run desktop:build`.
 
-The GitHub Actions workflow builds on Windows and an Apple Silicon macOS runner, uploads installer artifacts, then allows the dependent Pages deployment only after those builds pass. Read [building and releases](docs/building.md), [the file format](docs/file-format.md), and [the plugin API](docs/plugins.md).
+The GitHub Actions workflow builds on Windows and an Apple Silicon macOS runner, runs launch smoke checks, and publishes preview downloads with checksums. The dependent Pages deployment runs after both builds and the release pass. Enable its publishing source once in repository Settings → Pages → GitHub Actions. Read [building and releases](docs/building.md), [the file format](docs/file-format.md), and [the plugin API](docs/plugins.md).
 
 ## Project status
 

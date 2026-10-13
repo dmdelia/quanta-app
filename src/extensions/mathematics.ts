@@ -1,13 +1,15 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { MathfieldElement } from 'mathlive';
 import 'mathlive/fonts.css';
+import { applyMathMacros } from '../lib/math-macros';
 
 MathfieldElement.fontsDirectory = null; // Fonts are bundled by Vite through fonts.css.
 MathfieldElement.soundsDirectory = null;
 
-export const mathExtension = (inline: boolean) => Node.create({
+export const mathExtension = (inline: boolean) => Node.create<{getMacros: () => Record<string, string>}>({
   name: inline ? 'mathInline' : 'mathBlock', group: inline ? 'inline' : 'block', inline,
   atom: true, selectable: true, draggable: !inline,
+  addOptions() { return {getMacros: () => ({})}; },
   addAttributes() { return { latex: { default: '', parseHTML: el => el.getAttribute('data-latex'), renderHTML: attrs => ({'data-latex': attrs.latex}) } }; },
   parseHTML() { return [{ tag: `${inline?'span':'div'}[data-type="math-${inline?'inline':'block'}"]` }]; },
   renderHTML({HTMLAttributes}) { return [inline?'span':'div', mergeAttributes(HTMLAttributes, {'data-type':`math-${inline?'inline':'block'}`})]; },
@@ -15,7 +17,7 @@ export const mathExtension = (inline: boolean) => Node.create({
     return ({node, getPos, editor}) => {
       const dom = document.createElement(inline?'span':'div'); dom.className = inline?'math-inline':'math-block';
       dom.setAttribute('data-type', `math-${inline?'inline':'block'}`); dom.contentEditable = 'false';
-      const field = new MathfieldElement(); field.value = node.attrs.latex;
+      const field = new MathfieldElement(); applyMathMacros(field, this.options.getMacros()); field.value = node.attrs.latex;
       field.mathVirtualKeyboardPolicy = 'manual'; field.setAttribute('aria-label', 'Editable equation');
       field.placeholder = inline ? 'x' : 'Click to write an equation';
       const handleInput = () => {

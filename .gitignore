@@ -12,6 +12,10 @@ playwright-report/
 test-results/
 *.log
 *.tsbuildinfo
+native-dist/
+release-dist/
+installers/
+release-notes.md
 .DS_Store
 *.quanta
 credentials*.json
