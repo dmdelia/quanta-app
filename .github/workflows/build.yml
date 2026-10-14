@@ -66,9 +66,40 @@ jobs:
         working-directory: src-tauri
       - run: cargo check --locked --target ${{ matrix.target }}
         working-directory: src-tauri
-      - run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Build native Windows installer
+        if: runner.os == 'Windows'
+        run: npm run tauri build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Build Apple Silicon app and DMG (retry disk image packaging)
+        if: runner.os == 'macOS'
+        shell: bash
         env:
           APPLE_SIGNING_IDENTITY: '-'
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            echo "::group::macOS bundle attempt $attempt"
+            if npm run tauri build -- --target ${{ matrix.target }} --bundles app,dmg 2>&1 | tee "tauri-macos-attempt-${attempt}.log"; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "::warning::DMG bundling attempt $attempt failed. Inspecting disk images."
+            hdiutil info || true
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::macOS DMG bundling failed after three attempts."
+              exit 1
+            fi
+            sleep 8
+          done
+      - name: Upload macOS bundling diagnostics
+        if: failure() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: QUANTA-macOS-bundling-logs
+          path: |
+            tauri-macos-attempt-*.log
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.log
+          if-no-files-found: warn
       - run: node scripts/package-native.mjs ${{ matrix.target }}
       - run: node scripts/smoke-native.mjs ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
